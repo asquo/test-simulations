@@ -129,6 +129,9 @@ footer{color:var(--muted);font-size:.85rem;padding:0 0 40px}
 .note.add span.head{border-style:dashed;border-color:var(--accent);color:var(--accent)}
 button.btn.danger{color:var(--ko);border-color:var(--ko)}
 .endbtns{display:flex;flex-wrap:wrap;gap:8px}
+.sprog{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);height:4px;z-index:11;background:transparent;pointer-events:none}
+.sprog i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:0 50%;transform:scaleX(0)}
+@media print{.sprog{display:none}}
 .errnav{position:sticky;top:0;z-index:4;background:var(--ko-soft);border-bottom:2px solid var(--ko);padding:6px 12px}
 .errnav-in{max-width:820px;margin:0 auto;display:flex;align-items:center;gap:8px}
 .errnav .lbl{flex:1;text-align:center;font-weight:600;color:var(--ko);font-size:.95rem}
@@ -146,6 +149,7 @@ li.q.focus{outline:3px solid var(--ko);outline-offset:3px}
 </style>
 </head>
 <body>
+<div class="sprog" aria-hidden="true"><i id="sprog"></i></div>
 <div class="wrap">
 <header class="top">
   <h1>Simulazioni d’esame G3 Musicoterapia</h1>
@@ -219,7 +223,7 @@ function stave(){
     b.onclick=()=>{location.hash='sim-'+sim.n};el.appendChild(b);});
   const nb=document.createElement('button');nb.className='note add';nb.setAttribute('aria-label','Crea una nuova simulazione');
   nb.innerHTML='<span class="head"><b>+</b></span>';nb.onclick=newSim;el.appendChild(nb);
-  const a=el.querySelector('.active'); if(a) a.scrollIntoView({block:'nearest',inline:'center'});
+  const a=el.querySelector('.active'); if(a){const nav=el.parentElement;nav.scrollLeft=Math.max(0,a.offsetLeft-nav.clientWidth/2+a.offsetWidth/2);}
 }
 function fmtDate(t){try{return new Date(t).toLocaleString('it-IT',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
 function endBox(){
@@ -318,8 +322,10 @@ document.getElementById('bank').addEventListener('click',e=>{const b=e.target.cl
   const y=b.getBoundingClientRect().top;renderBank();const nb=document.querySelector('.reveal[data-i="'+i+'"]');if(nb){window.scrollBy(0,nb.getBoundingClientRect().top-y);nb.focus({preventScroll:true});}});
 document.getElementById('qs').addEventListener('click',e=>{
   const b=e.target.closest('.opt'); if(!b||!cur) return; const s=st(cur); if(s.shown) return;
-  const k=+b.dataset.k,p=+b.dataset.p; if(s.a[k]===p) delete s.a[k]; else s.a[k]=p; save(); render();
-  const el=document.getElementById('d'+(k+1)); if(el) el.querySelector('[data-p="'+p+'"]')?.focus({preventScroll:true});
+  const k=+b.dataset.k,p=+b.dataset.p; if(s.a[k]===p) delete s.a[k]; else s.a[k]=p; save();
+  b.closest('li').querySelectorAll('.opt').forEach(o=>{const on=s.a[k]===+o.dataset.p;o.classList.toggle('sel',on);o.setAttribute('aria-pressed',on);});
+  document.getElementById('simMeta').textContent=result(cur).done+' risposte date su 30'+(cur.custom&&cur.created?' · creata il '+fmtDate(cur.created):'');
+  endBox();
 });
 document.getElementById('btnNew').onclick=newSim;
 document.getElementById('btnReset').onclick=()=>{if(!cur)return;state[cur.key]={a:{},shown:false};save();render();window.scrollTo(0,0);};
@@ -333,7 +339,13 @@ function route(){
   const m=/^#sim-(\d+)$/.exec(location.hash);let sim=m?findSim(+m[1]):null;if(!sim)sim=findSim(1);
   cur=sim;render();window.scrollTo(0,0);}
 window.addEventListener('hashchange',route);
-load(); route();
+let sprogRaf=0;
+function sprog(){sprogRaf=0;const d=document.documentElement,max=d.scrollHeight-innerHeight;
+  document.getElementById('sprog').style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,scrollY/max)):0)+')';}
+function sprogQ(){if(!sprogRaf)sprogRaf=requestAnimationFrame(sprog);}
+window.addEventListener('scroll',sprogQ,{passive:true});window.addEventListener('resize',sprogQ);
+window.addEventListener('hashchange',()=>setTimeout(sprogQ,0));
+load(); route(); sprogQ();
 </script>
 </body>
 </html>
